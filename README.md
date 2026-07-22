@@ -9,9 +9,12 @@
 ## 技術棧
 
 - **Java 21**（record、text block、switch expression）
-- **Spring Boot 3.4**（CLI 應用，`CommandLineRunner`）
+- **Spring Boot 3.4**（`spring-boot-starter-web`，同時支援 CLI 與 REST）
 - **Spring AI 1.0.0（Anthropic）**：`ChatClient` + `@Tool` 自動 tool-calling 迴圈——
   LLM 的多輪工具呼叫由框架處理，不需手刻 HTTP/JSON。
+
+主機層 probe 為 **OS-aware**：自動偵測 Linux / macOS 用對應指令（見 `Os`），
+方便在 macOS 開發機本機測試；docker exec 進 container 的 JVM probe 不受主機 OS 影響。
 
 > 版本提醒：Spring AI 在版本間 API 會變動，本專案以 1.0.0 GA 撰寫；
 > 若你本機用不同版本，`@Tool` / `ChatClient.tools(...)` 等 API 可能要微調。
@@ -93,6 +96,26 @@ mvn test
 ```
 
 模型可在 `application.yml` 或環境變數調整（預設 `claude-sonnet-4-5`）。
+
+## Web / REST 模式
+
+**不帶任何參數**啟動時，會改跑 REST API + dashboard（帶參數則為純 CLI，不啟 web server）：
+
+```bash
+export ANTHROPIC_API_KEY=sk-...
+java -jar target/ai-devops-assistant-0.1.0.jar     # 啟動於 http://localhost:8080
+```
+
+- Dashboard：瀏覽器開 `http://localhost:8080/`（輸入問題 → AI 診斷 / 純蒐證 / 列 probe）。
+- `GET  /api/probes`                — 列出所有唯讀 probe
+- `GET  /api/collect?container=X`   — 純蒐證（不呼叫 LLM，回 JSON）
+- `POST /api/diagnose`              — 完整 LLM 診斷，body：`{"question":"...","container":"tomcat"}`
+
+```bash
+curl -X POST http://localhost:8080/api/diagnose \
+  -H 'Content-Type: application/json' \
+  -d '{"question":"為什麼 Tomcat 變慢？","container":"tomcat"}'
+```
 
 ## 演進路線對應
 

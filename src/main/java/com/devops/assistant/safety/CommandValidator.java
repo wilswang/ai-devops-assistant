@@ -23,8 +23,11 @@ public final class CommandValidator {
 
     /** 允許執行的 binary（絕對唯讀）。 */
     public static final Set<String> ALLOWED_BINARIES = Set.of(
+            // 通用 / Linux
             "uptime", "cat", "free", "df", "ps", "ss", "top", "vmstat",
             "iostat", "mpstat", "uname", "nproc", "who", "w",
+            // macOS 對應唯讀工具
+            "vm_stat", "netstat",
             "docker"
     );
 

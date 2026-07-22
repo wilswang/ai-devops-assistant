@@ -52,14 +52,18 @@ public final class ProbeRegistry {
                 p -> List.of(List.of("uptime"))));
 
         put(m, Probe.of("system_cpu", "system",
-                "CPU 使用率快照（top 一次性）。找出吃 CPU 的進程。",
+                "CPU 使用率快照（Linux: top -bn1；macOS: top -l 1）。找出吃 CPU 的進程。",
                 false,
-                p -> List.of(List.of("top", "-bn1"))));
+                p -> Os.current().isMac()
+                        ? List.of(List.of("top", "-l", "1", "-o", "cpu", "-n", "20"))
+                        : List.of(List.of("top", "-bn1"))));
 
         put(m, Probe.of("system_memory", "system",
-                "記憶體與 swap 使用（free -m）。判斷是否記憶體壓力 / 大量 swap。",
+                "記憶體與 swap 使用（Linux: free -m；macOS: vm_stat）。判斷是否記憶體壓力 / 大量 swap。",
                 false,
-                p -> List.of(List.of("free", "-m"))));
+                p -> Os.current().isMac()
+                        ? List.of(List.of("vm_stat"))
+                        : List.of(List.of("free", "-m"))));
 
         put(m, Probe.of("system_disk", "system",
                 "磁碟空間與 inode 使用（df）。磁碟或 inode 滿會導致服務異常變慢。",
@@ -69,17 +73,23 @@ public final class ProbeRegistry {
         put(m, Probe.of("system_top_processes", "system",
                 "依 CPU 排序的進程列表（ps）。定位資源大戶。",
                 false,
-                p -> List.of(List.of("ps", "-eo", "pid,ppid,%cpu,%mem,comm", "--sort=-%cpu"))));
+                p -> Os.current().isMac()
+                        ? List.of(List.of("ps", "-Ao", "pid,ppid,%cpu,%mem,comm", "-r"))
+                        : List.of(List.of("ps", "-eo", "pid,ppid,%cpu,%mem,comm", "--sort=-%cpu"))));
 
         put(m, Probe.of("system_ports", "system",
-                "監聽中的 TCP port 與對應進程（ss -tlnp）。確認 Tomcat 連接埠狀態。",
+                "監聽中的 TCP port（Linux: ss -tlnp；macOS: netstat）。確認 Tomcat 連接埠狀態。",
                 false,
-                p -> List.of(List.of("ss", "-tlnp"))));
+                p -> Os.current().isMac()
+                        ? List.of(List.of("netstat", "-an", "-p", "tcp"))
+                        : List.of(List.of("ss", "-tlnp"))));
 
         put(m, Probe.of("system_conn_summary", "system",
-                "TCP 連線統計摘要（ss -s）。判斷連線數 / TIME-WAIT 是否異常。",
+                "TCP 連線 / 協定統計（Linux: ss -s；macOS: netstat -s）。判斷連線數 / TIME-WAIT 是否異常。",
                 false,
-                p -> List.of(List.of("ss", "-s"))));
+                p -> Os.current().isMac()
+                        ? List.of(List.of("netstat", "-s", "-p", "tcp"))
+                        : List.of(List.of("ss", "-s"))));
 
         // --- docker 層 -----------------------------------------------------
         put(m, Probe.of("docker_ps", "docker",

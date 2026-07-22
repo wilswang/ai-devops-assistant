@@ -35,10 +35,10 @@
     </dependencyManagement>
 
     <dependencies>
-        <!-- Spring Boot 核心（CLI 應用，不需 web） -->
+        <!-- Spring Boot Web：REST API + 內嵌 Tomcat。CLI 模式下由 main() 關閉 web server -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter</artifactId>
+            <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
 
         <!-- Spring AI Anthropic：ChatClient + 自動 tool-calling 迴圈 -->

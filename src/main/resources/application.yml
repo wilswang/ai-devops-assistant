@@ -1,7 +1,9 @@
+server:
+  port: 8080
+
 spring:
   main:
-    web-application-type: none      # CLI 應用，不啟動 web server
-    banner-mode: "off"
+    banner-mode: "off"              # web/CLI 模式由 main() 依參數決定
   ai:
     anthropic:
       # 未設定環境變數時給 dummy，讓 --collect-only / --list-probes 可離線執行
