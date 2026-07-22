@@ -1,0 +1,16 @@
+spring:
+  main:
+    web-application-type: none      # CLI 應用，不啟動 web server
+    banner-mode: "off"
+  ai:
+    anthropic:
+      # 未設定環境變數時給 dummy，讓 --collect-only / --list-probes 可離線執行
+      api-key: ${ANTHROPIC_API_KEY:dummy}
+      chat:
+        options:
+          model: claude-sonnet-4-5
+          max-tokens: 4096
+
+logging:
+  level:
+    root: WARN                      # 保持 CLI 輸出乾淨
