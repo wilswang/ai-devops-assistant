@@ -1,5 +1,7 @@
 # AI DevOps Assistant — 唯讀診斷 agent (Java 21 / Spring Boot + Spring AI)
 
+[![CI](https://github.com/wilswang/ai-devops-assistant/actions/workflows/ci.yml/badge.svg)](https://github.com/wilswang/ai-devops-assistant/actions/workflows/ci.yml)
+
 針對「為什麼這台 server 的 Tomcat 變慢？」情境的**唯讀**自動診斷工具。
 目標環境：單機 Linux + Docker 化 Tomcat。
 
@@ -145,6 +147,11 @@ mvn test -Dtest=CommandValidatorTest       # 單一
 ```
 
 controller 測試用 `@WebMvcTest` + `@MockitoBean`，不需 API key；冒煙測試以 dummy key 離線載入。
+
+## CI
+
+`.github/workflows/ci.yml`：每次 push / PR 到 `main`，在 **ubuntu-latest（等同目標 Linux 環境，
+OS-aware probe 走 Linux 分支）** 上跑 `mvn test` 與 `mvn package`。任何測試紅燈即擋。
 
 ## 演進路線對應
 
