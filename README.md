@@ -117,6 +117,35 @@ curl -X POST http://localhost:8080/api/diagnose \
   -d '{"question":"為什麼 Tomcat 變慢？","container":"tomcat"}'
 ```
 
+## 開發流程（TDD）
+
+本專案採**測試驅動開發**。新功能一律照 red → green → refactor：
+
+1. **Red**：先在對應的 `src/test/...` 寫一個描述期望行為的測試，跑 `mvn test` 確認它**失敗**。
+2. **Green**：寫最小實作讓測試通過。
+3. **Refactor**：在測試保護下重構，保持綠燈。
+
+> 說明：MVP 的第一批功能是先寫 code、後補測試（characterization / 整合測試，把既有行為釘住）；
+> 從 Phase 3 起的新功能才是嚴格 TDD。
+
+## 測試
+
+| 測試 | 層 | 說明 |
+|---|---|---|
+| `CommandValidatorTest` | safety | 白名單放行、破壞性 / 注入指令攔截 |
+| `ProbeRunnerTest` | probe | 真實執行安全 probe、驗證 `[SAFETY BLOCKED]` |
+| `ProbeRegistryTest` | probe | probe 數量 / 分層 / OS-aware / collector |
+| `DiagnosticToolsTest` | agent | 未知 probe 回錯、container 覆寫 |
+| `DiagnosticControllerTest` | web | `@WebMvcTest` 切片，mock agent，測三個 endpoint |
+| `DiagnosticAssistantApplicationTests` | app | `@SpringBootTest` 冒煙測試（含 Spring AI 佈線） |
+
+```bash
+mvn test                                   # 全部
+mvn test -Dtest=CommandValidatorTest       # 單一
+```
+
+controller 測試用 `@WebMvcTest` + `@MockitoBean`，不需 API key；冒煙測試以 dummy key 離線載入。
+
 ## 演進路線對應
 
 - **Phase 1/2（本 MVP）**：唯讀 AI Terminal + Docker 蒐證，單機。
