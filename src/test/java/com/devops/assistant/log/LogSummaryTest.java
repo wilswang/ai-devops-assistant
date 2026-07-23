@@ -2,8 +2,10 @@ package com.devops.assistant.log;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -45,6 +47,33 @@ class LogSummaryTest {
     void handlesNoErrors() {
         String out = LogSummary.format(new LogAnalysis(List.of(), 50, 0));
         assertTrue(out.contains("ERROR 0"), "無錯誤時應顯示 ERROR 0，實際:\n" + out);
+    }
+
+    @Test
+    void truncatesToTopNClustersAndNotesTheRest() {
+        List<ErrorCluster> many = new ArrayList<>();
+        for (int i = 0; i < 8; i++) {
+            many.add(new ErrorCluster("sig-" + i, "sample-" + i, 8 - i, ""));
+        }
+        LogAnalysis analysis = new LogAnalysis(many, 300, 40, 0);
+
+        String out = LogSummary.format(analysis, 3);
+
+        // 只列出前 3 群
+        assertTrue(out.contains("sig-0"), "應列出第 1 群，實際:\n" + out);
+        assertTrue(out.contains("sig-2"), "應列出第 3 群");
+        assertFalse(out.contains("sig-3"), "超出 top-N 的群不應列出");
+
+        // 標示尚有 5 群未列出
+        assertTrue(out.contains("還有 5 群"), "應標示還有 5 群未列出，實際:\n" + out);
+    }
+
+    @Test
+    void doesNotAppendTruncationNoteWhenWithinTopN() {
+        LogAnalysis analysis = new LogAnalysis(
+                List.of(new ErrorCluster("only one", "sample", 1, "")), 10, 1, 0);
+        String out = LogSummary.format(analysis, 3);
+        assertFalse(out.contains("未列出"), "群數未超過 top-N 時不應出現截斷提示，實際:\n" + out);
     }
 
     @Test
