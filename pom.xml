@@ -47,6 +47,13 @@
             <artifactId>spring-ai-starter-model-anthropic</artifactId>
         </dependency>
 
+        <!-- Spring AI Ollama：本地模型 provider（由 app.llm.provider 切換）。
+             注意：本地小模型 tool-calling 支援參差，需挑支援 function calling 的模型 -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-model-ollama</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>

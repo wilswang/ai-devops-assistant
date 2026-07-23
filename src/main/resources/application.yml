@@ -1,6 +1,12 @@
 server:
   port: 8080
 
+# LLM provider 切換：anthropic（預設，雲端）或 ollama（本地）。
+# 用環境變數覆寫，如 LLM_PROVIDER=ollama。
+app:
+  llm:
+    provider: ${LLM_PROVIDER:anthropic}
+
 spring:
   main:
     banner-mode: "off"              # web/CLI 模式由 main() 依參數決定
@@ -12,6 +18,15 @@ spring:
         options:
           model: claude-sonnet-4-5
           max-tokens: 4096
+    ollama:
+      base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
+      # 啟動時不自動拉模型；請先自行 `ollama pull <model>`
+      init:
+        pull-model-strategy: never
+      chat:
+        options:
+          # 需挑「支援 tool/function calling」的模型（如 qwen2.5、llama3.1）
+          model: ${OLLAMA_MODEL:qwen2.5}
 
 logging:
   level:
