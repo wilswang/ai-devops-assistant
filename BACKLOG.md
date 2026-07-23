@@ -58,17 +58,19 @@ A（IncidentCatalog → `incidents.yaml`）→ B（LogAnalyzer pattern → `logf
 
 ---
 
-## 5. 配置外部覆寫（不重編即可調整）
+## 5. 配置外部覆寫（不重編即可調整）✅（完成）
 
 **目標**：#3/#4 的配置除了內建預設，還能被「外部檔案」覆寫，讓使用者不用重新編譯就能
 新增/調整 probe、log pattern、incident 樣態。
 
-**做法**
-- 內建預設 YAML 於 classpath；啟動時若指定的外部路徑（如 `--config-dir` 或屬性）存在則 override/merge。
-- 外部來源與內建同樣走 fail-fast + `CommandValidator` 驗證，不因「來自外部」而放行。
+**已完成**
+- `ConfigSource`（純 Java）：外部目錄優先、否則退回 classpath 內建；由 `app.config.dir`
+  （env `CONFIG_DIR`）設定，`StartupConfigValidator` 於載入前指定。
+- 三個 loader 改經 `ConfigSource.read` 取內容；**合併策略＝整檔覆蓋**（同名檔存在即取代內建）。
+- 外部來源一樣走 fail-fast + `CommandValidator` 驗證。實測：外部 `probes.yaml` 覆蓋成功；
+  外部含 `rm -rf` → 開機 fail-fast（不因來源而放行）。
 
-**風險 / 注意**
-- 外部檔可信度：仍須過白名單與 load-time 驗證。合併策略（覆蓋 vs 疊加）要明確定義。
+**未做（未來可選）**：逐條 merge（按名覆寫單一 probe / 追加 incident），目前為整檔覆蓋。
 
 ---
 
