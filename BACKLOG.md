@@ -41,20 +41,20 @@
 
 ---
 
-## 3. Probe 改為配置驅動（不寫死在程式碼）
+## 3. Probe 改為配置驅動（不寫死在程式碼）✅（完成）
 
 **目標**：probe 定義從 `ProbeRegistry` 的 Java 程式碼，移到外部 YAML，方便新增/調整而不改碼。
 
-**做法**
-- 定義 probe schema（name / category / description / 各 OS 指令 argv / 需要的參數）。
-- 啟動時載入成 `Probe`；OS-aware 分支也放進配置。
+**已完成**（配置化階段 C）
+- `probes.yaml`（內建）：15 個 probe 定義，`commands` 依 OS 分支（linux/macos/default）、
+  `${container}`/`${pid}` 佔位。`ProbeConfigLoader`（SnakeYAML）載入，`ProbeRegistry` 顯式
+  `load()` + 惰性補載。
+- **安全紅線落地**：載入時每個 probe（當前 OS）的每條 argv 都過 `CommandValidator` 白名單，
+  非唯讀指令即 fail-fast（測試證明 `rm -rf` 被擋）。由 `StartupConfigValidator` 開機即驗證。
 
-**風險 / 注意**
-- **安全紅線**：配置來的指令仍必須過 `CommandValidator` 白名單，不得因為「來自配置」就放行。這反而讓「配置（要跑什麼）」與「白名單（准不准跑）」的分離更清楚。
-
-**進行中**：配置化採漸進落地（先內建於 resources 的預設 YAML、fail-fast、SnakeYAML）。
-階段 A（IncidentCatalog → `incidents.yaml`）→ B（LogAnalyzer pattern → `logformat.yaml`）
-→ C（ProbeRegistry → `probes.yaml`）。
+**已完成的三階段**（先內建預設 YAML、fail-fast、SnakeYAML）：
+A（IncidentCatalog → `incidents.yaml`）→ B（LogAnalyzer pattern → `logformat.yaml`）
+→ C（ProbeRegistry → `probes.yaml`）。既有特徵測試不改一字仍全綠 = 行為零改變。
 
 ---
 
@@ -72,14 +72,16 @@
 
 ---
 
-## 4. 定義 log 內容規格與 pattern 庫
+## 4. 定義 log 內容規格與 pattern 庫 ✅（完成）
 
 **目標**：把目前寫死在 `LogAnalyzer` 的 pattern（ERROR 等級、時間戳、exception regex）變成可定義的「log 格式規格」，並建立「已知事件樣態庫」。
 
-**做法**
-- Log 格式規格（可配置）：時間戳格式、等級關鍵字、續行/stacktrace 判定規則。
-- 已知事件樣態庫：timeout、OOMKilled、connection refused、too many open files… 每種一個 pattern + 說明 + 建議，命中即標記。
-- 讓分析結果能對應到「事件類型」，提高 LLM 診斷的準確度與一致性。
+**已完成**（配置化階段 A + B）
+- `incidents.yaml`（階段 A）：已知事件樣態庫（OOM / 連線被拒 / timeout / fd 耗盡 / disk full…），
+  每種 keywords + 說明 + 建議，命中即標記；由 `IncidentCatalogLoader` 載入。
+- `logformat.yaml`（階段 B）：等級關鍵字、時間戳 header、stackFrame、exceptionType 四類 regex，
+  由 `LogFormatLoader` 載入，regex 於載入時即編譯（打錯 pattern fail-fast）。
+- 兩者皆由 `StartupConfigValidator` 開機即驗證。（IP/數字 signature 遮罩維持內建，非格式規格。）
 
 **風險 / 注意**
 - 不同框架/容器 log 格式差異大；規格要能覆蓋多種來源。與第 3 點同源（config-driven），可一起設計配置檔結構。
