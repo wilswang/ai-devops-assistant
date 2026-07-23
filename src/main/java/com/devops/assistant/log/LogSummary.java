@@ -20,6 +20,7 @@ public final class LogSummary {
         StringBuilder sb = new StringBuilder();
         sb.append("Log 摘要：總行數 ").append(analysis.totalLines())
                 .append("、ERROR ").append(analysis.errorLines())
+                .append(" 行、WARN ").append(analysis.warnLines())
                 .append(" 行、錯誤群集 ").append(analysis.clusters().size()).append(" 個");
 
         for (ErrorCluster c : analysis.clusters()) {

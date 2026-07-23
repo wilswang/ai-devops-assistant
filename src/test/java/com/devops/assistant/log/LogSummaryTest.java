@@ -48,6 +48,13 @@ class LogSummaryTest {
     }
 
     @Test
+    void reportsWarnCountSeparatelyFromError() {
+        String out = LogSummary.format(new LogAnalysis(List.of(), 100, 3, 5));
+        assertTrue(out.contains("ERROR 3"), "應含 ERROR 3，實際:\n" + out);
+        assertTrue(out.contains("WARN 5"), "WARN 應與 ERROR 分開呈現，實際:\n" + out);
+    }
+
+    @Test
     void annotatesClustersWithKnownIncidentAndSuggestion() {
         LogAnalysis analysis = new LogAnalysis(
                 List.of(
