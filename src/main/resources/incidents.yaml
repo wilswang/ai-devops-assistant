@@ -21,3 +21,8 @@ incidents:
     description: "檔案描述元耗盡（too many open files）"
     suggestion: "檢查 fd / ulimit 與資源（連線、檔案）洩漏"
     keywords: ["too many open files"]
+
+  - id: DISK_FULL
+    description: "磁碟空間不足"
+    suggestion: "檢查 df -h 與大檔/日誌輪替；可用 system_disk 佐證"
+    keywords: ["no space left on device", "disk full"]
