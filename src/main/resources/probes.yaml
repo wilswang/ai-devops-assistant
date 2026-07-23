@@ -1,0 +1,117 @@
+# 唯讀 probe 定義（ProbeRegistry）。三層：system / docker / tomcat。
+# 內建預設；未來（BACKLOG #5）可由外部檔覆寫。
+#
+# 安全紅線：載入時每個 probe（當前 OS）的每條指令都會過 CommandValidator 白名單——
+#           配置不能因為「來自 YAML」就放行非唯讀指令，任一條不合法即啟動失敗。
+#
+# commands 依 OS 分支：mac → macos、其餘（linux/other）→ linux，找不到再退回 default。
+# 佔位符 ${container}（預設 tomcat）、${pid}（預設 1）於執行時由 params 代入。
+# 每個指令 token 一律用字串（數字也加引號），避免被 YAML 解析成整數。
+probes:
+  # --- system 層 ---------------------------------------------------------
+  - name: system_load
+    category: system
+    description: "主機負載與開機時間（uptime）。判斷整體是否過載的第一站。"
+    commands:
+      default: [["uptime"]]
+
+  - name: system_cpu
+    category: system
+    description: "CPU 使用率快照（Linux: top -bn1；macOS: top -l 1）。找出吃 CPU 的進程。"
+    commands:
+      linux: [["top", "-bn1"]]
+      macos: [["top", "-l", "1", "-o", "cpu", "-n", "20"]]
+
+  - name: system_memory
+    category: system
+    description: "記憶體與 swap 使用（Linux: free -m；macOS: vm_stat）。判斷是否記憶體壓力 / 大量 swap。"
+    commands:
+      linux: [["free", "-m"]]
+      macos: [["vm_stat"]]
+
+  - name: system_disk
+    category: system
+    description: "磁碟空間與 inode 使用（df）。磁碟或 inode 滿會導致服務異常變慢。"
+    commands:
+      default: [["df", "-h"], ["df", "-i"]]
+
+  - name: system_top_processes
+    category: system
+    description: "依 CPU 排序的進程列表（ps）。定位資源大戶。"
+    commands:
+      linux: [["ps", "-eo", "pid,ppid,%cpu,%mem,comm", "--sort=-%cpu"]]
+      macos: [["ps", "-Ao", "pid,ppid,%cpu,%mem,comm", "-r"]]
+
+  - name: system_ports
+    category: system
+    description: "監聽中的 TCP port（Linux: ss -tlnp；macOS: netstat）。確認 Tomcat 連接埠狀態。"
+    commands:
+      linux: [["ss", "-tlnp"]]
+      macos: [["netstat", "-an", "-p", "tcp"]]
+
+  - name: system_conn_summary
+    category: system
+    description: "TCP 連線 / 協定統計（Linux: ss -s；macOS: netstat -s）。判斷連線數 / TIME-WAIT 是否異常。"
+    commands:
+      linux: [["ss", "-s"]]
+      macos: [["netstat", "-s", "-p", "tcp"]]
+
+  # --- docker 層 ---------------------------------------------------------
+  - name: docker_ps
+    category: docker
+    description: "所有 container 狀態（docker ps -a）。看 Tomcat container 是否 Up / Restarting。"
+    commands:
+      default: [["docker", "ps", "-a"]]
+
+  - name: docker_stats
+    category: docker
+    description: "container 即時資源用量（docker stats 一次性）：CPU% / MEM / NET / BLOCK IO。"
+    needsContainer: true
+    commands:
+      default: [["docker", "stats", "--no-stream", "${container}"]]
+
+  - name: docker_inspect_health
+    category: docker
+    description: "container 健康狀態、重啟次數、資源上限（docker inspect）。判斷 OOMKilled / 記憶體上限。"
+    needsContainer: true
+    commands:
+      default:
+        - ["docker", "inspect", "--format", "State={{.State.Status}} Restarts={{.RestartCount}} OOMKilled={{.State.OOMKilled}} MemLimit={{.HostConfig.Memory}} NanoCpus={{.HostConfig.NanoCpus}}", "${container}"]
+
+  - name: docker_top
+    category: docker
+    description: "container 內進程列表（docker top）。確認 JVM 進程存活與 PID。"
+    needsContainer: true
+    commands:
+      default: [["docker", "top", "${container}"]]
+
+  - name: docker_logs_tail
+    category: docker
+    description: "container 最近 200 行 log（docker logs --tail）。找 error / OOM / stacktrace。"
+    needsContainer: true
+    commands:
+      default: [["docker", "logs", "--tail", "200", "${container}"]]
+
+  # --- tomcat / JVM 層（透過 docker exec 唯讀取得）------------------------
+  - name: tomcat_jvm_procs
+    category: tomcat
+    description: "container 內 JVM 進程（jps -l）。取得 Tomcat 的 Java PID 供後續 GC / thread 分析。"
+    needsContainer: true
+    commands:
+      default: [["docker", "exec", "${container}", "jps", "-l"]]
+
+  - name: tomcat_gc_stat
+    category: tomcat
+    description: "JVM GC 使用率快照（jstat -gcutil，取樣 3 次）。判斷是否 GC 頻繁 / 老年代滿 / Full GC 拖慢。 需 params.pid（由 tomcat_jvm_procs 取得）。"
+    needsContainer: true
+    params: ["pid"]
+    commands:
+      default: [["docker", "exec", "${container}", "jstat", "-gcutil", "${pid}", "1000", "3"]]
+
+  - name: tomcat_thread_dump
+    category: tomcat
+    description: "JVM thread dump（jstack）。看是否大量 BLOCKED / WAITING 執行緒、鎖競爭、慢查詢卡住。 需 params.pid。輸出可能較長。"
+    needsContainer: true
+    params: ["pid"]
+    commands:
+      default: [["docker", "exec", "${container}", "jstack", "${pid}"]]

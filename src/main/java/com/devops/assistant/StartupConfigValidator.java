@@ -2,6 +2,7 @@ package com.devops.assistant;
 
 import com.devops.assistant.log.IncidentCatalog;
 import com.devops.assistant.log.LogFormatLoader;
+import com.devops.assistant.probe.ProbeRegistry;
 import jakarta.annotation.PostConstruct;
 import org.springframework.stereotype.Component;
 
@@ -20,5 +21,6 @@ public class StartupConfigValidator {
     public void validate() {
         IncidentCatalog.load();       // #4 incidents.yaml
         LogFormatLoader.loadDefault(); // #4 logformat.yaml（regex 於此編譯驗證）
+        ProbeRegistry.load();         // #3 probes.yaml（每條指令於此過白名單驗證）
     }
 }
