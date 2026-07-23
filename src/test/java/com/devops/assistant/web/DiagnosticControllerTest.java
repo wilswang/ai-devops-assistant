@@ -2,6 +2,8 @@ package com.devops.assistant.web;
 
 import com.devops.assistant.agent.DiagnosticAgent;
 import org.junit.jupiter.api.Test;
+
+import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.MediaType;
@@ -28,6 +30,9 @@ class DiagnosticControllerTest {
     @MockitoBean
     private DiagnosticAgent agent;
 
+    @MockitoBean
+    private ContainerProvider containers;
+
     @Test
     void listsAllProbes() throws Exception {
         mvc.perform(get("/api/probes"))
@@ -41,6 +46,18 @@ class DiagnosticControllerTest {
         mvc.perform(get("/api/collect").param("container", "tomcat"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(15));
+    }
+
+    @Test
+    void listsRunningContainers() throws Exception {
+        given(containers.listRunning())
+                .willReturn(List.of("apollo-portal", "apollo-db"));
+
+        mvc.perform(get("/api/containers"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0]").value("apollo-portal"))
+                .andExpect(jsonPath("$[1]").value("apollo-db"));
     }
 
     @Test
