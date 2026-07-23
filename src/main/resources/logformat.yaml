@@ -1,0 +1,17 @@
+# log 格式規格（LogAnalyzer）。決定如何辨識等級、新記錄開頭、stacktrace 續行與 exception 類型。
+# 內建預設；未來（BACKLOG #5）可由外部檔覆寫。載入為 fail-fast——regex 打錯或缺欄位即啟動失敗。
+# 註：IP / 數字的 signature 正規化（分群用遮罩）仍內建於 LogAnalyzer，不在此配置。
+logFormat:
+  # 等級關鍵字，順序即優先序（ERROR 先於 WARN）。對每行以 \b(kw...)\b 比對，命中即取其後為訊息。
+  levels:
+    ERROR: ["ERROR"]
+    WARN:  ["WARN"]
+
+  # 一筆新 log 記錄的開頭（時間戳，如 2026-07-22 10:00:01 或 2026-07-22T10:00:01）
+  timestampHeader: '^\d{4}-\d{2}-\d{2}[ T]'
+
+  # stacktrace 堆疊框行（如 "at com.foo.Bar.baz(Bar.java:42)"）——不含關鍵字，排除以精簡 detail
+  stackFrame: '^at\s'
+
+  # 完整 exception 類名擷取（需含一個擷取群組），結尾為 Exception / Error / Throwable
+  exceptionType: '((?:[\w$]+\.)+[\w$]*(?:Exception|Error|Throwable))'

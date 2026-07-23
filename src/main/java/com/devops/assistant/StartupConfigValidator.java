@@ -1,6 +1,7 @@
 package com.devops.assistant;
 
 import com.devops.assistant.log.IncidentCatalog;
+import com.devops.assistant.log.LogFormatLoader;
 import jakarta.annotation.PostConstruct;
 import org.springframework.stereotype.Component;
 
@@ -17,6 +18,7 @@ public class StartupConfigValidator {
 
     @PostConstruct
     public void validate() {
-        IncidentCatalog.load();  // #4 incidents.yaml
+        IncidentCatalog.load();       // #4 incidents.yaml
+        LogFormatLoader.loadDefault(); // #4 logformat.yaml（regex 於此編譯驗證）
     }
 }
