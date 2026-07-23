@@ -6,6 +6,9 @@ server:
 app:
   llm:
     provider: ${LLM_PROVIDER:anthropic}
+    # 模型是否支援 function calling。true（預設）走工具迴圈讓模型自選 probe；
+    # 本地小模型若不支援 function calling，設 false 改走「先蒐全部證據→模型摘要」fallback。
+    tool-calling: ${LLM_TOOL_CALLING:true}
 
 spring:
   main:

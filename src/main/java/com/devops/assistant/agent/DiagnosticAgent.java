@@ -1,39 +1,74 @@
 package com.devops.assistant.agent;
 
 import com.devops.assistant.probe.Probe;
+import com.devops.assistant.probe.ProbeCollector;
 import com.devops.assistant.probe.ProbeRegistry;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 /**
  * 診斷 agent：組裝系統提示 + 工具，交給 Spring AI 的 ChatClient。
- * Spring AI 會自動處理多輪 tool-calling 迴圈（呼叫 runProbe → 回填結果 → 續問），
- * 我們不需手刻 HTTP/JSON 迴圈。
+ *
+ * <p>兩種策略（由 {@code app.llm.tool-calling} 切換）：
+ * <ul>
+ *   <li><b>tool-calling（預設）</b>：掛上工具，Spring AI 自動處理多輪 tool-calling 迴圈
+ *       （呼叫 runProbe → 回填結果 → 續問），模型自行選擇要跑哪些 probe。</li>
+ *   <li><b>collect-summarize（fallback）</b>：本地小模型常不支援 function calling，
+ *       改為先蒐集全部唯讀證據、塞進 prompt，讓模型直接據此產出報告，不走工具迴圈。</li>
+ * </ul>
  */
 @Service
 public class DiagnosticAgent {
 
     private final ChatClient chatClient;
     private final DiagnosticTools tools;
+    private final boolean toolCalling;
 
-    public DiagnosticAgent(ChatClient chatClient, DiagnosticTools tools) {
+    public DiagnosticAgent(ChatClient chatClient, DiagnosticTools tools,
+                           @Value("${app.llm.tool-calling:true}") boolean toolCalling) {
         this.chatClient = chatClient;
         this.tools = tools;
+        this.toolCalling = toolCalling;
     }
 
     public String diagnose(String question, String container) {
         tools.setDefaultContainer(container);
-        String userMessage = "目標 container 名稱：" + container + "\n\n問題：" + question;
+        return toolCalling
+                ? diagnoseWithTools(question, container)
+                : diagnoseWithCollectedEvidence(question, container);
+    }
 
+    /** tool-calling 路徑：模型自行呼叫 runProbe / analyzeContainerLog 蒐證。 */
+    private String diagnoseWithTools(String question, String container) {
+        String userMessage = "目標 container 名稱：" + container + "\n\n問題：" + question;
         return chatClient.prompt()
-                .system(systemPrompt())
+                .system(toolCallingSystemPrompt())
                 .user(userMessage)
                 .tools(tools)
                 .call()
                 .content();
     }
 
-    private String systemPrompt() {
+    /** fallback 路徑：先蒐全部唯讀證據，交給模型摘要診斷，不掛工具。 */
+    private String diagnoseWithCollectedEvidence(String question, String container) {
+        String evidence = EvidenceReport.format(ProbeCollector.collectAll(container));
+        String userMessage = """
+                目標 container 名稱：%s
+
+                問題：%s
+
+                以下是已「預先採集」的唯讀診斷證據，請只根據這些內容做診斷（不需、也無法再執行任何指令）：
+
+                %s""".formatted(container, question, evidence);
+        return chatClient.prompt()
+                .system(fallbackSystemPrompt())
+                .user(userMessage)
+                .call()
+                .content();
+    }
+
+    private String toolCallingSystemPrompt() {
         return """
                 你是一個唯讀的 Linux/Docker/Tomcat 診斷助理。
 
@@ -51,6 +86,27 @@ public class DiagnosticAgent {
                   分群並擷取 exception 類型），而不是直接讀原始 log。
                 - 蒐證足夠後停止呼叫工具，用繁體中文輸出最終診斷報告。
 
+                """ + reportFormatInstructions() + "\n可用的 probe 清單：\n" + probeCatalog();
+    }
+
+    private String fallbackSystemPrompt() {
+        return """
+                你是一個唯讀的 Linux/Docker/Tomcat 診斷助理。
+
+                目標：根據使用者訊息中「已預先採集」的唯讀 probe 證據，做出診斷。
+
+                規則：
+                - 所有證據都已附在使用者訊息中，你不需也無法執行任何指令或工具。
+                - 只根據提供的證據推論；資料不足時明說「證據不足」，不要臆造數據。
+                - 標為 [SKIP/ERR] 的 probe 代表該環境取不到（例如容器內沒有 JDK 工具），
+                  可據此判斷但不要當成錯誤根因。
+                - 用繁體中文輸出最終診斷報告。
+
+                """ + reportFormatInstructions();
+    }
+
+    private String reportFormatInstructions() {
+        return """
                 最終報告必須嚴格用以下四段結構（Markdown）：
                 ## 現象
                 （觀察到的具體症狀，引用數據）
@@ -60,10 +116,7 @@ public class DiagnosticAgent {
                 （支持推測的實際 probe 輸出片段，標明來自哪個 probe）
                 ## 建議
                 （下一步排查或修復方向。若涉及變更操作，明確標註「此為變更操作，需人工確認後執行」，
-                你自己不執行）
-
-                可用的 probe 清單：
-                """ + probeCatalog();
+                你自己不執行）""";
     }
 
     private String probeCatalog() {
