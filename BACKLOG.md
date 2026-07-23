@@ -5,7 +5,7 @@
 
 ---
 
-## 1. LLM 可切換本地模型
+## 1. LLM 可切換本地模型 ✅（核心完成）
 
 **目標**：除了 Anthropic，能切換到本地模型（Ollama：Llama / Qwen 等），離線或降低成本時使用。
 
@@ -13,8 +13,16 @@
 - 加 `spring-ai-starter-model-ollama`，用 Spring profile 或設定（如 `app.llm.provider=anthropic|ollama`）決定注入哪個 `ChatModel`。
 - `ChatClient` 本身 provider 無關，`DiagnosticAgent` 幾乎不用改。
 
-**風險 / 注意**
-- 本地小模型的 **tool-calling 支援參差不齊**，需挑支援 function calling 的模型；不支援者需 fallback（例如改為「純蒐證 + 模型摘要」不走工具迴圈）。
+**已完成**（commit：ChatModelSelector + AppConfig 切換）
+- `spring-ai-starter-model-ollama` 已加；`app.llm.provider`（預設 anthropic）用 `ChatModelSelector`
+  惰性挑選 `ChatModel` 建立 `ChatClient`；未知 provider 於啟動即快速失敗並列出可用清單。
+- 設定：`spring.ai.ollama`（`OLLAMA_BASE_URL` / `OLLAMA_MODEL`，預設 `qwen2.5`，`pull-model-strategy=never`）。
+- `DiagnosticAgent` 未改。實測 anthropic/ollama 兩路 bean 皆可建立（ollama 未啟動不需網路）。
+
+**待補（風險，需討論後再開工）**
+- 本地小模型的 **tool-calling 支援參差不齊**：目前僅切換 provider，尚未針對「模型不支援 function calling」
+  做 fallback（例如改走「純蒐證 + 模型摘要」不進工具迴圈）。挑到支援 function calling 的模型（qwen2.5、
+  llama3.1）即可用；否則需這個 fallback 路徑。
 
 ---
 
@@ -62,5 +70,7 @@
 ## 目前狀態（已完成）
 
 - Phase 1/2：唯讀診斷 agent（15 probe）、安全層白名單、CLI + REST + dashboard、OS-aware（Linux/macOS）。
-- Phase 3（進行中）：`LogAnalyzer` 過濾/正規化/分群/stacktrace 擷取 → `LogSummary` 精簡摘要 →
-  整合為 `analyzeContainerLog` 工具。待補：top-N 截斷、WARN 分級。
+- Phase 3（完成）：`LogAnalyzer` 過濾/正規化/分群/stacktrace 擷取 → `LogSummary` 精簡摘要 →
+  整合為 `analyzeContainerLog` 工具。含 `IncidentCatalog` 已知事件比對（並涵蓋 stacktrace 續行）、
+  top-N 截斷、WARN 分級。
+- BACKLOG #1（核心完成）：LLM provider 可切換（anthropic / ollama），見上。
