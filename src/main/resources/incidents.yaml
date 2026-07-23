@@ -1,0 +1,23 @@
+# 已知事件樣態庫（IncidentCatalog）。命中任一 keyword（對 log 文字 lowercase 後比對）
+# 即標記為該事件。順序即優先序：由上而下，先命中先回。
+# 內建預設；未來（BACKLOG #5）可由外部檔覆寫。載入為 fail-fast——缺必填欄位即啟動失敗。
+incidents:
+  - id: OOM
+    description: "記憶體不足（OutOfMemoryError / OOMKilled）"
+    suggestion: "檢查 heap 用量與 -Xmx、容器記憶體上限；可用 tomcat_gc_stat、docker_inspect_health 佐證"
+    keywords: ["outofmemoryerror", "oomkilled", "out of memory"]
+
+  - id: CONNECTION_REFUSED
+    description: "連線被拒（Connection refused）"
+    suggestion: "確認目標服務/埠是否存活、網路與防火牆；可用 system_ports 佐證"
+    keywords: ["connection refused"]
+
+  - id: TIMEOUT
+    description: "逾時（timeout）"
+    suggestion: "檢查下游延遲、執行緒阻塞（tomcat_thread_dump）、連線池設定"
+    keywords: ["timeout", "timed out"]
+
+  - id: TOO_MANY_OPEN_FILES
+    description: "檔案描述元耗盡（too many open files）"
+    suggestion: "檢查 fd / ulimit 與資源（連線、檔案）洩漏"
+    keywords: ["too many open files"]
