@@ -52,6 +52,24 @@
 **風險 / 注意**
 - **安全紅線**：配置來的指令仍必須過 `CommandValidator` 白名單，不得因為「來自配置」就放行。這反而讓「配置（要跑什麼）」與「白名單（准不准跑）」的分離更清楚。
 
+**進行中**：配置化採漸進落地（先內建於 resources 的預設 YAML、fail-fast、SnakeYAML）。
+階段 A（IncidentCatalog → `incidents.yaml`）→ B（LogAnalyzer pattern → `logformat.yaml`）
+→ C（ProbeRegistry → `probes.yaml`）。
+
+---
+
+## 5. 配置外部覆寫（不重編即可調整）
+
+**目標**：#3/#4 的配置除了內建預設，還能被「外部檔案」覆寫，讓使用者不用重新編譯就能
+新增/調整 probe、log pattern、incident 樣態。
+
+**做法**
+- 內建預設 YAML 於 classpath；啟動時若指定的外部路徑（如 `--config-dir` 或屬性）存在則 override/merge。
+- 外部來源與內建同樣走 fail-fast + `CommandValidator` 驗證，不因「來自外部」而放行。
+
+**風險 / 注意**
+- 外部檔可信度：仍須過白名單與 load-time 驗證。合併策略（覆蓋 vs 疊加）要明確定義。
+
 ---
 
 ## 4. 定義 log 內容規格與 pattern 庫
