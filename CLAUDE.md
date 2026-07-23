@@ -64,17 +64,21 @@ java -jar target/ai-devops-assistant-0.1.0.jar                  # 啟動 REST + 
 ## 目前進度
 
 - **Phase 1/2（完成）**：15 個唯讀 probe、安全層、CLI + REST + dashboard、OS-aware。
-- **Phase 3（進行中）**：`LogAnalyzer`（分群 + stacktrace 擷取）→ `LogSummary` →
+- **Phase 3（完成）**：`LogAnalyzer`（分群 + stacktrace 擷取）→ `LogSummary` →
   已整合為 `analyzeContainerLog` 工具。
-- **`IncidentCatalog` 已知事件樣態比對（GREEN，完成）**：`match(ErrorCluster)` 認出
+- **`IncidentCatalog` 已知事件樣態比對（完成）**：`match(ErrorCluster)` 認出
   OOM / CONNECTION_REFUSED / TIMEOUT / TOO_MANY_OPEN_FILES，未知回 null。測試 `IncidentCatalogTest`。
+- **原「剩餘規劃」三項（完成，已 push）**：
+  1. `IncidentCatalog` 接進 `LogSummary`：命中群標註事件類型 + 說明 + 建議。
+  2. `LogSummary` **top-N 截斷**（`DEFAULT_TOP_N=10`，超出以「還有 M 群未列出」帶過）
+     與 **WARN 分級**（`LogLevel`；`LogAnalyzer` 另計 `warnLines`、ERROR 群優先排序；
+     `LogSummary` 摘要行同列 ERROR/WARN 行數）。
+  3. **stacktrace 續行納入比對**：`ErrorCluster.detail` 吸附續行非 stack frame 文字
+     （上限 500 字），修補「根因關鍵字埋在 `Caused by…` 而比對不到」的盲點；
+     已用真實 apollo-portal log 驗證可命中 CONNECTION_REFUSED。
 
-### 剩餘規劃（屬「原本預計內容」，可在 Claude Code 自動推進到此為止）
-
-1. 把 `IncidentCatalog` 接進 `LogSummary`：摘要每群標註命中的事件類型與建議。
-2. `LogSummary` / `LogAnalyzer` 加 **top-N 截斷** 與 **WARN 分級**（WARN 納入但與 ERROR 分開統計）。
-
-> 完成上述後，**只剩 `BACKLOG.md` 的項目 → 停下來與使用者討論，不自行開工。**
+> Phase 3 與原「剩餘規劃」皆已完成。**接下來只剩 `BACKLOG.md` 的項目 →
+> 停下來與使用者討論，不自行開工。**
 
 ## 後續規劃（BACKLOG，需先討論）
 
