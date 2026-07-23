@@ -17,10 +17,15 @@ Java 21、Spring Boot 3.4、Spring AI 1.0.0（Anthropic）。建置需 JDK 21 + 
 | package | 職責 | 依賴 |
 |---|---|---|
 | `safety` | `CommandValidator`：唯讀白名單、禁 shell metachar | 純 Java |
-| `probe` | `Probe`/`ProbeRegistry`(15 個)/`ProbeRunner`(ProcessBuilder)/`ProbeCollector`；`Os` OS-aware | 純 Java |
-| `log` | `LogAnalyzer`(過濾/正規化/分群/stacktrace)、`LogSummary`、`IncidentCatalog`(事件樣態) | 純 Java |
-| `agent` | `DiagnosticTools`(@Tool)、`DiagnosticAgent`(ChatClient) | Spring AI |
-| `web` | `DiagnosticController`：/api/diagnose、/api/collect、/api/probes | Spring MVC |
+| `config` | `ConfigSource`：外部目錄優先、否則 classpath 內建（供三份 YAML 覆寫） | 純 Java |
+| `probe` | `Probe`/`ProbeRegistry`(15 個)/`ProbeRunner`/`ProbeCollector`/`ContainerLister`；`Os` OS-aware；`ProbeConfigLoader` ← `probes.yaml`（載入即過白名單） | 純 Java |
+| `log` | `LogAnalyzer`/`LogSummary`/`IncidentCatalog`；`LogFormatLoader` ← `logformat.yaml`、`IncidentCatalogLoader` ← `incidents.yaml` | 純 Java |
+| `agent` | `DiagnosticTools`(@Tool)、`DiagnosticAgent`(ChatClient)、`ChatModelSelector`(provider 切換)、`EvidenceReport`(fallback) | Spring AI |
+| `web` | `DiagnosticController`：/api/diagnose、/api/collect、/api/probes、/api/containers；`ContainerProvider` | Spring MVC |
+| （根）| `StartupConfigValidator`：`@PostConstruct` 開機載入三份配置 → fail-fast；`AppConfig`：依 provider 建 `ChatClient` | Spring |
+
+> 配置化：`incidents.yaml` / `logformat.yaml` / `probes.yaml` 內建於 `resources`，SnakeYAML 載入、
+> fail-fast；可由 `CONFIG_DIR` 外部整檔覆蓋，外部來源一樣過白名單驗證。
 
 ## 核心不可違反的原則
 
@@ -59,28 +64,52 @@ mvn package                                # 打包
 java -jar target/ai-devops-assistant-0.1.0.jar --collect-only   # 純蒐證（不需 API key）
 java -jar target/ai-devops-assistant-0.1.0.jar                  # 啟動 REST + dashboard (:8080)
 # AI 診斷需先 export ANTHROPIC_API_KEY=sk-...
+
+# 環境變數開關：
+#   LLM_PROVIDER=anthropic|ollama       切換 LLM provider（預設 anthropic）
+#   OLLAMA_MODEL / OLLAMA_BASE_URL      ollama 模型與位址（預設 qwen2.5 / localhost:11434）
+#   LLM_TOOL_CALLING=true|false         false 走「蒐證+摘要」fallback（給不支援 tool calling 的本地小模型）
+#   CONFIG_DIR=/path/to/dir             外部配置目錄，整檔覆蓋內建 incidents/logformat/probes.yaml
 ```
 
 ## 目前進度
 
-- **Phase 1/2（完成）**：15 個唯讀 probe、安全層、CLI + REST + dashboard、OS-aware。
-- **Phase 3（完成）**：`LogAnalyzer`（分群 + stacktrace 擷取）→ `LogSummary` →
-  已整合為 `analyzeContainerLog` 工具。
-- **`IncidentCatalog` 已知事件樣態比對（完成）**：`match(ErrorCluster)` 認出
-  OOM / CONNECTION_REFUSED / TIMEOUT / TOO_MANY_OPEN_FILES，未知回 null。測試 `IncidentCatalogTest`。
-- **原「剩餘規劃」三項（完成，已 push）**：
-  1. `IncidentCatalog` 接進 `LogSummary`：命中群標註事件類型 + 說明 + 建議。
-  2. `LogSummary` **top-N 截斷**（`DEFAULT_TOP_N=10`，超出以「還有 M 群未列出」帶過）
-     與 **WARN 分級**（`LogLevel`；`LogAnalyzer` 另計 `warnLines`、ERROR 群優先排序；
-     `LogSummary` 摘要行同列 ERROR/WARN 行數）。
-  3. **stacktrace 續行納入比對**：`ErrorCluster.detail` 吸附續行非 stack frame 文字
-     （上限 500 字），修補「根因關鍵字埋在 `Caused by…` 而比對不到」的盲點；
-     已用真實 apollo-portal log 驗證可命中 CONNECTION_REFUSED。
+> 最後更新：2026-07-23。全套 65 測試綠、CI 綠（HEAD `062c23e`）。
 
-> Phase 3 與原「剩餘規劃」皆已完成。**接下來只剩 `BACKLOG.md` 的項目 →
-> 停下來與使用者討論，不自行開工。**
+### 已完成
 
-## 後續規劃（BACKLOG，需先討論）
+- **Phase 1/2**：15 個唯讀 probe、安全層白名單、CLI + REST + dashboard、OS-aware。
+- **Phase 3（log 分析）**：`LogAnalyzer`（過濾/正規化/分群/stacktrace 擷取）→ `LogSummary`
+  → `analyzeContainerLog` 工具。含：
+  - `IncidentCatalog` 已知事件比對（OOM / 連線被拒 / timeout / fd 耗盡 / disk full…），
+    命中群在 `LogSummary` 標註事件類型 + 說明 + 建議。
+  - **top-N 截斷**（`DEFAULT_TOP_N=10`）與 **WARN 分級**（`LogLevel`；`warnLines` 與 ERROR 分開）。
+  - **stacktrace 續行納入比對**（`ErrorCluster.detail`，上限 500 字）——修補根因埋在
+    `Caused by…` 比對不到的盲點；真實 apollo-portal log 驗證命中 CONNECTION_REFUSED。
+- **BACKLOG #1 — LLM provider 可切換**：`app.llm.provider`（anthropic / ollama）由
+  `ChatModelSelector` 惰性挑 `ChatModel`。含 **tool-calling fallback**（`app.llm.tool-calling=false`
+  時走「先蒐全部證據→模型摘要」`EvidenceReport`，給不支援 function calling 的本地小模型）。
+- **BACKLOG #3/#4 — 配置化**（三份內建 YAML，SnakeYAML，fail-fast）：
+  - `incidents.yaml` ← `IncidentCatalogLoader`（事件樣態庫）
+  - `logformat.yaml` ← `LogFormatLoader`（等級關鍵字 / 時間戳 / stackFrame / exceptionType regex，
+    載入時編譯驗證）
+  - `probes.yaml` ← `ProbeConfigLoader`（15 probe，OS-aware `commands` + `${container}`/`${pid}`
+    佔位，**載入時每條 argv 過 `CommandValidator` 白名單**）
+  - `StartupConfigValidator`（`@PostConstruct`）**開機即載入三份配置**——壞配置/壞 regex/
+    非白名單指令一律**啟動失敗**（fail-fast 提前到開機，非首次使用）。
+- **BACKLOG #5 — 配置外部覆寫**：`ConfigSource` 外部目錄優先、否則 classpath 內建；
+  由 `app.config.dir`（env `CONFIG_DIR`）設定，**整檔覆蓋**。外部來源一樣過 fail-fast + 白名單
+  （實測外部 `probes.yaml` 含 `rm -rf` → 開機失敗）。
+- **dashboard**：container 欄位改 `datalist`，載入時 `GET /api/containers`（走 `docker ps` 唯讀路徑）
+  自動偵測執行中容器。
+- **CI**：actions 升 node24（checkout@v5 / setup-java@v5）。
 
-見 `BACKLOG.md`：本地模型切換(Ollama)、遠端主機(SSH/inventory, Phase 4)、
-probe 配置化、log pattern 規格化。
+### 尚未完成（BACKLOG，需先討論才動工）
+
+- **BACKLOG #2 — 遠端主機 SSH（原 Phase 4）**：抽 `CommandExecutor` 介面（`LocalExecutor` +
+  `SshExecutor`）、host inventory 配置、REST/CLI `--host` 參數。**攻擊面最大、工作量最大**；
+  動工前先把設計與安全邊界討論清楚。
+- **BACKLOG #5 延伸（可選）**：配置逐條 merge（按名覆寫單一 probe / 追加 incident），
+  目前僅整檔覆蓋。
+
+> **停下點**：只剩上述 BACKLOG 項目 → 一律先與使用者討論，不自行開工。
