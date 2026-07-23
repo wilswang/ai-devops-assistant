@@ -35,12 +35,17 @@ public final class IncidentCatalog {
     private IncidentCatalog() {
     }
 
-    /** 比對一個錯誤群集是否命中已知事件；未命中回 null。比對 signature + exceptionType + sample。 */
+    /**
+     * 比對一個錯誤群集是否命中已知事件；未命中回 null。
+     * 比對範圍涵蓋 signature + exceptionType + sample + detail——
+     * detail 讓埋在 stacktrace（Caused by…）裡的根因關鍵字也能被認出。
+     */
     public static KnownEvent match(ErrorCluster cluster) {
         if (cluster == null) {
             return null;
         }
-        String text = (cluster.signature() + " " + cluster.exceptionType() + " " + cluster.sample())
+        String text = (cluster.signature() + " " + cluster.exceptionType() + " "
+                + cluster.sample() + " " + cluster.detail())
                 .toLowerCase();
         for (Rule rule : RULES) {
             for (String keyword : rule.keywords()) {

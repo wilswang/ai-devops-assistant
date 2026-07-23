@@ -38,6 +38,22 @@ class IncidentCatalogTest {
     }
 
     @Test
+    void matchesKeywordBuriedInStacktraceDetail() {
+        // header 訊息與 exceptionType 都不含關鍵字，關鍵字只在 Caused by 續行（detail）
+        ErrorCluster c = new ErrorCluster(
+                "Get admin server address from meta server failed",
+                "…ERROR Get admin server address from meta server failed",
+                2, "org.springframework.web.client.ResourceAccessException",
+                LogLevel.ERROR,
+                "Caused by: java.net.ConnectException: Connection refused (Connection refused)");
+
+        KnownEvent event = IncidentCatalog.match(c);
+
+        assertNotNull(event, "續行中的 Connection refused 應命中已知事件");
+        assertEquals("CONNECTION_REFUSED", event.id());
+    }
+
+    @Test
     void returnsNullForUnknown() {
         ErrorCluster c = new ErrorCluster(
                 "Some business rule violated", "ERROR ... business rule X", 1, "");
