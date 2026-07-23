@@ -38,4 +38,13 @@ class DiagnosticToolsTest {
         String out = tools.runProbe("docker_stats", "other-ctr", null);
         assertTrue(out.contains("other-ctr"), "顯式 container 應覆寫預設，實際: " + out);
     }
+
+    @Test
+    void analyzeContainerLogDegradesGracefullyWhenDockerUnavailable() {
+        // 測試環境通常無此 container；工具不應拋例外，而是回傳可讀的 probe 輸出
+        String out = tools.analyzeContainerLog("no-such-container");
+        assertTrue(out != null && !out.isBlank(), "應回傳非空字串，實際: " + out);
+        assertTrue(out.contains("docker logs") || out.contains("Log 摘要"),
+                "應為原始探針輸出或 log 摘要，實際: " + out);
+    }
 }

@@ -47,6 +47,8 @@ public class DiagnosticAgent {
                   再視情況深入 docker 與 tomcat 層。
                 - 要跑 tomcat_gc_stat / tomcat_thread_dump，先用 tomcat_jvm_procs 取得 JVM PID，
                   再把該 PID 當作 pid 參數傳入。
+                - 要看 log／找錯誤時，優先用 analyzeContainerLog 工具（它會過濾雜訊、將相似錯誤
+                  分群並擷取 exception 類型），而不是直接讀原始 log。
                 - 蒐證足夠後停止呼叫工具，用繁體中文輸出最終診斷報告。
 
                 最終報告必須嚴格用以下四段結構（Markdown）：

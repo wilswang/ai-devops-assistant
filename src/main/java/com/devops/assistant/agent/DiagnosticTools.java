@@ -1,5 +1,8 @@
 package com.devops.assistant.agent;
 
+import com.devops.assistant.log.LogAnalysis;
+import com.devops.assistant.log.LogAnalyzer;
+import com.devops.assistant.log.LogSummary;
 import com.devops.assistant.probe.Probe;
 import com.devops.assistant.probe.ProbeRegistry;
 import com.devops.assistant.probe.ProbeResult;
@@ -60,5 +63,28 @@ public class DiagnosticTools {
         }
         return "$ " + String.join("; ", result.commands()) + "\n"
                 + (out.isBlank() ? "(無輸出)" : out);
+    }
+
+    @Tool(description = """
+            取得 container 最近的 log 並做錯誤分析：過濾 INFO 雜訊、將相似錯誤分群、
+            吸附 stacktrace 並擷取 exception 類型，回傳精簡摘要（比原始 log 更適合診斷、
+            也不會灌爆內容）。診斷「變慢 / 報錯 / timeout」時應優先使用此工具而非直接讀原始 log。""")
+    public String analyzeContainerLog(
+            @ToolParam(required = false, description = "目標 container 名稱")
+            String container) {
+
+        String c = (container == null || container.isBlank()) ? defaultContainer : container;
+        ProbeResult result = ProbeRunner.run(
+                ProbeRegistry.get("docker_logs_tail"),
+                Map.of("container", c, "pid", "1"));
+
+        // docker 不可用時 graceful degrade：回傳原始探針輸出（含 [N/A] 等訊息）
+        if (!result.ok()) {
+            return "$ " + String.join("; ", result.commands()) + "\n"
+                    + (result.output().isBlank() ? "(無輸出)" : result.output());
+        }
+
+        LogAnalysis analysis = new LogAnalyzer().analyze(result.output());
+        return LogSummary.format(analysis);
     }
 }
