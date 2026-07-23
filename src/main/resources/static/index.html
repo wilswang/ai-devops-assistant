@@ -43,7 +43,9 @@
         </div>
         <div class="container-field">
             <label>container 名稱</label>
-            <input id="container" value="tomcat">
+            <input id="container" list="containers-list" value="tomcat"
+                   placeholder="輸入或選擇容器" autocomplete="off">
+            <datalist id="containers-list"></datalist>
         </div>
     </div>
     <div class="actions">
@@ -92,6 +94,23 @@
         } catch (e) { setOut('請求失敗：' + e); setStatus(''); }
     }
 
+    // 載入時自動偵測執行中的容器，填入 datalist 下拉建議（仍可手動輸入）。
+    async function loadContainers() {
+        try {
+            const r = await fetch('/api/containers');
+            if (!r.ok) return;
+            const names = await r.json();
+            if (!Array.isArray(names) || names.length === 0) return;  // docker 不可用 → 保持可輸入
+            $('containers-list').innerHTML =
+                names.map(n => `<option value="${n}">`).join('');
+            // 若目前仍是預設 tomcat 且偵測不到 tomcat，改帶第一個偵測到的容器
+            const cur = $('container').value.trim();
+            if ((cur === '' || cur === 'tomcat') && !names.includes('tomcat')) {
+                $('container').value = names[0];
+            }
+        } catch (e) { /* graceful degrade：偵測失敗就當普通輸入框 */ }
+    }
+
     async function listProbes() {
         setStatus('載入 probe 清單…'); setOut('…');
         try {
@@ -103,6 +122,8 @@
             setStatus('共 ' + list.length + ' 個 probe');
         } catch (e) { setOut('請求失敗：' + e); setStatus(''); }
     }
+
+    loadContainers();  // 頁面載入即偵測容器
 </script>
 </body>
 </html>
