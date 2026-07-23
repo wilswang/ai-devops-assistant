@@ -27,6 +27,13 @@ public final class LogSummary {
                     ? c.signature()
                     : c.exceptionType() + " — " + c.signature();
             sb.append("\n[×").append(c.count()).append("] ").append(label);
+
+            KnownEvent event = IncidentCatalog.match(c);
+            if (event != null) {
+                sb.append("\n    ⮑ 已知事件 ").append(event.id())
+                        .append("：").append(event.description())
+                        .append("\n      建議：").append(event.suggestion());
+            }
         }
         return sb.toString();
     }

@@ -46,4 +46,26 @@ class LogSummaryTest {
         String out = LogSummary.format(new LogAnalysis(List.of(), 50, 0));
         assertTrue(out.contains("ERROR 0"), "無錯誤時應顯示 ERROR 0，實際:\n" + out);
     }
+
+    @Test
+    void annotatesClustersWithKnownIncidentAndSuggestion() {
+        LogAnalysis analysis = new LogAnalysis(
+                List.of(
+                        new ErrorCluster("Handler dispatch failed",
+                                "…ERROR java.lang.OutOfMemoryError: Java heap space",
+                                3, "java.lang.OutOfMemoryError"),
+                        new ErrorCluster("Some business rule violated",
+                                "…ERROR business rule X", 1, "")
+                ), 200, 4);
+
+        String out = LogSummary.format(analysis);
+
+        // 命中的群應標註已知事件代號與建議
+        assertTrue(out.contains("OOM"), "命中群應標註事件代號 OOM，實際:\n" + out);
+        assertTrue(out.contains("檢查 heap 用量"), "命中群應附上建議，實際:\n" + out);
+
+        // 未命中的群不應被硬塞事件代號（該行只呈現 signature）
+        int ruleIdx = out.indexOf("Some business rule violated");
+        assertTrue(ruleIdx >= 0, "未命中群仍應呈現 signature");
+    }
 }
