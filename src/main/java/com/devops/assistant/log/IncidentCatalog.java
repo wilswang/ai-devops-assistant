@@ -23,7 +23,7 @@ public final class IncidentCatalog {
 
     /** 顯式載入/重載配置（fail-fast）。由啟動流程呼叫以達成開機即驗證。 */
     public static void load() {
-        rules = IncidentCatalogLoader.loadFromClasspath(DEFAULT_RESOURCE);
+        rules = IncidentCatalogLoader.load(DEFAULT_RESOURCE);
     }
 
     private static List<IncidentRule> rules() {

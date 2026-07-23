@@ -1,8 +1,8 @@
 package com.devops.assistant.log;
 
+import com.devops.assistant.config.ConfigSource;
 import org.yaml.snakeyaml.Yaml;
 
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -49,17 +49,9 @@ public final class IncidentCatalogLoader {
         return List.copyOf(rules);
     }
 
-    /** 從 classpath 資源載入（找不到或解析失敗即 fail-fast）。 */
-    public static List<IncidentRule> loadFromClasspath(String resource) {
-        try (InputStream in = IncidentCatalogLoader.class.getClassLoader()
-                .getResourceAsStream(resource)) {
-            if (in == null) {
-                throw new IllegalStateException("找不到 incidents 配置資源：" + resource);
-            }
-            return parse(new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8));
-        } catch (java.io.IOException e) {
-            throw new IllegalStateException("讀取 incidents 配置失敗：" + resource, e);
-        }
+    /** 載入資源（外部優先，否則 classpath；找不到或解析失敗即 fail-fast）。 */
+    public static List<IncidentRule> load(String resource) {
+        return parse(ConfigSource.read(resource));
     }
 
     private static String requireString(Map<?, ?> m, String key) {

@@ -1,11 +1,10 @@
 package com.devops.assistant.probe;
 
+import com.devops.assistant.config.ConfigSource;
 import com.devops.assistant.safety.CommandValidator;
 import com.devops.assistant.safety.UnsafeCommandException;
 import org.yaml.snakeyaml.Yaml;
 
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -62,16 +61,9 @@ public final class ProbeConfigLoader {
         return result;
     }
 
-    /** 從 classpath 資源載入（找不到或解析/驗證失敗即 fail-fast）。 */
-    public static Map<String, Probe> loadFromClasspath(String resource) {
-        try (InputStream in = ProbeConfigLoader.class.getClassLoader().getResourceAsStream(resource)) {
-            if (in == null) {
-                throw new IllegalStateException("找不到 probes 配置資源：" + resource);
-            }
-            return parse(new String(in.readAllBytes(), StandardCharsets.UTF_8));
-        } catch (java.io.IOException e) {
-            throw new IllegalStateException("讀取 probes 配置失敗：" + resource, e);
-        }
+    /** 載入資源（外部優先，否則 classpath；找不到或解析/驗證失敗即 fail-fast）。 */
+    public static Map<String, Probe> load(String resource) {
+        return parse(ConfigSource.read(resource));
     }
 
     private static Probe toProbe(Map<?, ?> m) {
@@ -189,6 +181,6 @@ public final class ProbeConfigLoader {
 
     /** 便捷：載入內建預設 probes.yaml。 */
     public static Map<String, Probe> loadDefault() {
-        return loadFromClasspath("probes.yaml");
+        return load("probes.yaml");
     }
 }

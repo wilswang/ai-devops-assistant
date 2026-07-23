@@ -31,7 +31,7 @@ public final class ProbeRegistry {
 
     /** 顯式載入/重載配置（fail-fast）。由啟動流程呼叫以達成開機即驗證。 */
     public static void load() {
-        probes = ProbeConfigLoader.loadFromClasspath(DEFAULT_RESOURCE);
+        probes = ProbeConfigLoader.load(DEFAULT_RESOURCE);
     }
 
     public static Map<String, Probe> all() {

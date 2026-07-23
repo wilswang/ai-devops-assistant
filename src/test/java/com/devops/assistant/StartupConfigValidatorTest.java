@@ -12,7 +12,8 @@ class StartupConfigValidatorTest {
 
     @Test
     void validatesBundledConfigWithoutError() {
-        assertDoesNotThrow(() -> new StartupConfigValidator().validate(),
-                "內建預設 incidents.yaml 正確，啟動驗證不應拋錯");
+        // 未設外部目錄（空字串）→ 只用 classpath 內建；三份配置皆正確故不應拋錯
+        assertDoesNotThrow(() -> new StartupConfigValidator("").validate(),
+                "內建預設配置正確，啟動驗證不應拋錯");
     }
 }

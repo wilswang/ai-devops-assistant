@@ -4,6 +4,10 @@ server:
 # LLM provider 切換：anthropic（預設，雲端）或 ollama（本地）。
 # 用環境變數覆寫，如 LLM_PROVIDER=ollama。
 app:
+  # 外部配置目錄（BACKLOG #5）。留空則只用內建預設；設定後，該目錄若有同名檔
+  # （incidents.yaml / logformat.yaml / probes.yaml）就整檔覆蓋內建（仍過 fail-fast + 白名單）。
+  config:
+    dir: ${CONFIG_DIR:}
   llm:
     provider: ${LLM_PROVIDER:anthropic}
     # 模型是否支援 function calling。true（預設）走工具迴圈讓模型自選 probe；

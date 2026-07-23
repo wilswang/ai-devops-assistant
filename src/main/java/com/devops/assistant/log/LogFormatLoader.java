@@ -1,9 +1,8 @@
 package com.devops.assistant.log;
 
+import com.devops.assistant.config.ConfigSource;
 import org.yaml.snakeyaml.Yaml;
 
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -44,21 +43,14 @@ public final class LogFormatLoader {
                 compile(requireString(fmt, "exceptionType"), "exceptionType"));
     }
 
-    /** 從 classpath 資源載入（找不到或解析失敗即 fail-fast）。 */
-    public static LogFormat loadFromClasspath(String resource) {
-        try (InputStream in = LogFormatLoader.class.getClassLoader().getResourceAsStream(resource)) {
-            if (in == null) {
-                throw new IllegalStateException("找不到 logFormat 配置資源：" + resource);
-            }
-            return parse(new String(in.readAllBytes(), StandardCharsets.UTF_8));
-        } catch (java.io.IOException e) {
-            throw new IllegalStateException("讀取 logFormat 配置失敗：" + resource, e);
-        }
+    /** 載入資源（外部優先，否則 classpath；找不到或解析失敗即 fail-fast）。 */
+    public static LogFormat load(String resource) {
+        return parse(ConfigSource.read(resource));
     }
 
     /** 便捷：載入內建預設 {@link LogFormat#DEFAULT_RESOURCE}。 */
     public static LogFormat loadDefault() {
-        return loadFromClasspath(LogFormat.DEFAULT_RESOURCE);
+        return load(LogFormat.DEFAULT_RESOURCE);
     }
 
     /** 供測試/內部：等級關鍵字清單編成 {@code \b(kw1|kw2)\b} 的 pattern 字串。 */
