@@ -5,7 +5,7 @@
 
 ---
 
-## 1. LLM 可切換本地模型 ✅（核心完成）
+## 1. LLM 可切換本地模型 ✅（完成）
 
 **目標**：除了 Anthropic，能切換到本地模型（Ollama：Llama / Qwen 等），離線或降低成本時使用。
 
@@ -19,10 +19,11 @@
 - 設定：`spring.ai.ollama`（`OLLAMA_BASE_URL` / `OLLAMA_MODEL`，預設 `qwen2.5`，`pull-model-strategy=never`）。
 - `DiagnosticAgent` 未改。實測 anthropic/ollama 兩路 bean 皆可建立（ollama 未啟動不需網路）。
 
-**待補（風險，需討論後再開工）**
-- 本地小模型的 **tool-calling 支援參差不齊**：目前僅切換 provider，尚未針對「模型不支援 function calling」
-  做 fallback（例如改走「純蒐證 + 模型摘要」不進工具迴圈）。挑到支援 function calling 的模型（qwen2.5、
-  llama3.1）即可用；否則需這個 fallback 路徑。
+**tool-calling fallback（完成）**
+- 由 `app.llm.tool-calling`（預設 true，或 `LLM_TOOL_CALLING`）切換。true 走原工具迴圈；
+  false 走 fallback：`ProbeCollector.collectAll` 先蒐全部唯讀證據 → `EvidenceReport` 格式化
+  （每 probe 上限 2000 字）→ 不掛 tools 讓模型直接產四段報告。給不支援 function calling 的
+  本地小模型用。挑到支援 function calling 的模型（qwen2.5、llama3.1）則維持 true 即可。
 
 ---
 
